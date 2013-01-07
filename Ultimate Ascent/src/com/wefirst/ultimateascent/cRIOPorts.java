@@ -1,13 +1,13 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+* To change this template, choose Tools | Templates
+* and open the template in the editor.
+*/
 package com.wefirst.ultimateascent;
 
 /**
- *
- * @author Developer
- */
+*
+* @author Developer
+*/
 public class cRIOPorts {
     // NOTE: these are not correct yet - they are just placeholders
     public static final int LEFT_FRONT_MOTOR = 1;
