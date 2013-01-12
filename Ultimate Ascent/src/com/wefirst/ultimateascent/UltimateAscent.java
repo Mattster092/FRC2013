@@ -6,6 +6,7 @@ package com.wefirst.ultimateascent;
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project. */
 /*----------------------------------------------------------------------------*/
+import edu.wpi.first.wpilibj.CANJaguar;
 import edu.wpi.first.wpilibj.Dashboard;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStationLCD;
@@ -13,8 +14,8 @@ import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.camera.AxisCamera;
+import edu.wpi.first.wpilibj.can.CANTimeoutException;
 import edu.wpi.first.wpilibj.image.CriteriaCollection;
 import edu.wpi.first.wpilibj.image.NIVision;
 
@@ -28,7 +29,7 @@ import edu.wpi.first.wpilibj.image.NIVision;
 public class UltimateAscent extends SimpleRobot {
 
     private boolean m_robotMainOverridden;
-    Victor driveMotors[] = {new Victor(cRIOPorts.LEFT_MOTOR), new Victor(cRIOPorts.LEFT_MOTOR)};
+    CANJaguar driveMotors[];
     RobotDrive driveTrain;
     Joystick joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
     Joystick joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
@@ -72,6 +73,8 @@ public class UltimateAscent extends SimpleRobot {
      */
     protected void robotInit() {
         try {
+            driveMotors[0] = new CANJaguar(cRIOPorts.LEFT_MOTOR);
+            driveMotors[1] = new CANJaguar(cRIOPorts.RIGHT_MOTOR);
             driveTrain = new RobotDrive(driveMotors[0], driveMotors[2]);
             cam = AxisCamera.getInstance();
             cam.writeMaxFPS(15);
@@ -123,7 +126,11 @@ public class UltimateAscent extends SimpleRobot {
                 any.printStackTrace();
             }
             for (int x = 0; x < driveMotors.length; x++) {
-                driveMotors[x].set(0f);
+                try {
+                    driveMotors[x].disableControl();
+                } catch (CANTimeoutException ex) {
+                    ex.printStackTrace();
+                }
             }
         }
     }
