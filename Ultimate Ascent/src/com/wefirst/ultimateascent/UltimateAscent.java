@@ -6,7 +6,6 @@ package com.wefirst.ultimateascent;
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project. */
 /*----------------------------------------------------------------------------*/
-// this is a change!
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
@@ -30,6 +29,7 @@ import edu.wpi.first.wpilibj.image.ParticleAnalysisReport;
  */
 public class UltimateAscent extends SimpleRobot {
 
+    private boolean m_robotMainOverridden;
     Victor driveMotors[] = {new Victor(cRIOPorts.LEFT_MOTOR), new Victor(cRIOPorts.LEFT_MOTOR)};
     RobotDrive driveTrain;
     Joystick joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
@@ -38,13 +38,36 @@ public class UltimateAscent extends SimpleRobot {
     AxisCamera cam;
     CriteriaCollection cc;
 
-    public void robotMain() { // for testing
+    public UltimateAscent() {
+        super();
+        m_robotMainOverridden = true; // for testing - remove for competitions (I think)
+    }
+
+    /**
+     * Robot main program for free-form programs.
+     *
+     * This should be overridden by user subclasses if the intent is to not use
+     * the autonomous() and operatorControl() methods. In that case, the program
+     * is responsible for sensing when to run the autonomous and operator
+     * control functions in their program.
+     *
+     * This method will be called immediately after the constructor is called.
+     * If it has not been overridden by a user subclass (i.e. the default
+     * version runs), then the robotInit(), disabled(), autonomous() and
+     * operatorControl() methods will be called.
+     */
+    public void robotMain() { // for testing - remove for competitions (I think)
         robotInit();
         operatorControl();
     }
 
     /**
-     * This function is called once at execution
+     * Robot-wide initialization code should go here.
+     *
+     * Users should override this method for default Robot-wide initialization which will
+     * be called when the robot is first powered on.
+     *
+     * Called exactly 1 time when the competition starts.
      */
     protected void robotInit() {
         try {
@@ -65,7 +88,10 @@ public class UltimateAscent extends SimpleRobot {
     }
 
     /**
-     * This function is called once each time the robot enters autonomous mode.
+     * Autonomous should go here. Users should add autonomous code to this
+     * method that should run while the field is in the autonomous period.
+     *
+     * Called repeatedly while the robot is in the autonomous state.
      */
     public void autonomous() {
         System.err.println("Entering autonomous:");
@@ -76,7 +102,11 @@ public class UltimateAscent extends SimpleRobot {
     }
 
     /**
-     * This function is called once each time the robot enters operator control.
+     * Operator control (tele-operated) code should go here. Users should add
+     * Operator Control code to this method that should run while the field is
+     * in the Operator Control (tele-operated) period.
+     *
+     * Called repeatedly while the robot is in the operator-controlled state.
      */
     public void operatorControl() {
         System.err.println("Entering teleopp:");
@@ -93,6 +123,13 @@ public class UltimateAscent extends SimpleRobot {
         }
     }
 
+    /*
+     * Not sure how the camera and target-finding is going to go down, but it could be used in autonamous mode if the "instructions recorder" does not work properly
+     * Also could be used since we might not know where we start
+     * If we're using a launcher it might be more difficult to calibrate based on all three starting places
+     *
+     * The following method gets camera data, and then finds the center co-ordinate and size of all large, white rectangles on the image
+     */
     public void imageGrab() {
         ColorImage image;
         try {
@@ -123,6 +160,44 @@ public class UltimateAscent extends SimpleRobot {
 
     public void drive() {
         driveTrain.tankDrive(joystickLeft, joystickRight); // tank drive
-        Timer.delay(0.1);
+    }
+
+    protected void disabled() {
+        System.err.println("Robot is disabled.");
+    }
+
+    /**
+     * Start a competition. This code tracks the order of the field starting to
+     * ensure that everything happens in the right order. Repeatedly run the
+     * correct method, either Autonomous or OperatorControl when the robot is
+     * enabled. After running the correct method, wait for some state to change,
+     * either the other mode starts or the robot is disabled. Then go back and
+     * wait for the robot to be enabled again.
+     */
+    public void startCompetition() {
+        robotMain();
+        if (!m_robotMainOverridden) {
+            // first and one-time initialization
+            robotInit();
+
+            while (true) {
+                if (isDisabled()) {
+                    disabled();
+                    while (isDisabled()) {
+                        Timer.delay(0.01);
+                    }
+                } else if (isAutonomous()) {
+                    autonomous();
+                    while (isAutonomous() && isEnabled()) {
+                        Timer.delay(0.01);
+                    }
+                } else {
+                    operatorControl();
+                    while (isOperatorControl() && isEnabled()) {
+                        Timer.delay(0.01);
+                    }
+                }
+            } /* while loop */
+        }
     }
 }
