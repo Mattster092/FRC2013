@@ -6,19 +6,17 @@ package com.wefirst.ultimateascent;
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project. */
 /*----------------------------------------------------------------------------*/
+import edu.wpi.first.wpilibj.Dashboard;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStationLCD;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.camera.AxisCamera;
-import edu.wpi.first.wpilibj.camera.AxisCameraException;
-import edu.wpi.first.wpilibj.image.BinaryImage;
-import edu.wpi.first.wpilibj.image.ColorImage;
 import edu.wpi.first.wpilibj.image.CriteriaCollection;
 import edu.wpi.first.wpilibj.image.NIVision;
-import edu.wpi.first.wpilibj.image.NIVisionException;
-import edu.wpi.first.wpilibj.image.ParticleAnalysisReport;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -37,6 +35,9 @@ public class UltimateAscent extends SimpleRobot {
     Joystick joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
     AxisCamera cam;
     CriteriaCollection cc;
+    DriverStationLCD lcd;
+    Dashboard dashHigh;
+    Dashboard dashLow;
 
     public UltimateAscent() {
         super();
@@ -64,8 +65,8 @@ public class UltimateAscent extends SimpleRobot {
     /**
      * Robot-wide initialization code should go here.
      *
-     * Users should override this method for default Robot-wide initialization which will
-     * be called when the robot is first powered on.
+     * Users should override this method for default Robot-wide initialization
+     * which will be called when the robot is first powered on.
      *
      * Called exactly 1 time when the competition starts.
      */
@@ -95,9 +96,11 @@ public class UltimateAscent extends SimpleRobot {
      */
     public void autonomous() {
         System.err.println("Entering autonomous:");
+        // sendToDisplay("Entering autonomous:");
         driveTrain.setSafetyEnabled(false); // if true would stop the motors if there is no input, which there wouldn't be in autonomous
         while (isAutonomous() && isEnabled()) {
-            imageGrab();
+            Camera.imageGrab(cam, cc);
+            updateDashboard();
         }
     }
 
@@ -110,10 +113,12 @@ public class UltimateAscent extends SimpleRobot {
      */
     public void operatorControl() {
         System.err.println("Entering teleopp:");
+        // sendToDisplay("Entering teleopp:");
         driveTrain.setSafetyEnabled(true); // stops the motors if input stops
         while (isOperatorControl() && isEnabled()) {
             try {
                 drive();
+                updateDashboard();
             } catch (Exception any) {
                 any.printStackTrace();
             }
@@ -123,47 +128,13 @@ public class UltimateAscent extends SimpleRobot {
         }
     }
 
-    /*
-     * Not sure how the camera and target-finding is going to go down, but it could be used in autonamous mode if the "instructions recorder" does not work properly
-     * Also could be used since we might not know where we start
-     * If we're using a launcher it might be more difficult to calibrate based on all three starting places
-     *
-     * The following method gets camera data, and then finds the center co-ordinate and size of all large, white rectangles on the image
-     */
-    public void imageGrab() {
-        ColorImage image;
-        try {
-            image = cam.getImage();
-            BinaryImage thresholdImage = image.thresholdRGB(0, 45, 0, 45, 0, 45);   // keep only white objects
-            BinaryImage bigObjectsImage = thresholdImage.removeSmallObjects(false, 2);  // remove small artifacts
-            BinaryImage convexHullImage = bigObjectsImage.convexHull(false); // fill in occluded rectangles
-            BinaryImage filteredImage = convexHullImage.particleFilter(cc); // find filled in rectangles
-
-            ParticleAnalysisReport[] reports = filteredImage.getOrderedParticleAnalysisReports();  // get list of results
-            for (int i = 0; i < reports.length; i++) {                                // print results
-                ParticleAnalysisReport r = reports[i];
-                System.out.println("Particle: " + i + ":  Center of mass x: " + r.center_mass_x);
-            }
-            System.out.println(filteredImage.getNumberParticles() + "  " + Timer.getFPGATimestamp());
-
-            filteredImage.free();
-            convexHullImage.free();
-            bigObjectsImage.free();
-            thresholdImage.free();
-            image.free();
-        } catch (AxisCameraException ex) {
-            ex.printStackTrace();
-        } catch (NIVisionException ex) {
-            ex.printStackTrace();
-        }
-    }
-
     public void drive() {
         driveTrain.tankDrive(joystickLeft, joystickRight); // tank drive
     }
 
     protected void disabled() {
         System.err.println("Robot is disabled.");
+        // sendToDisplay("Robot is disabled.");
     }
 
     /**
@@ -199,5 +170,25 @@ public class UltimateAscent extends SimpleRobot {
                 }
             } /* while loop */
         }
+    }
+
+    void updateDashboard() {
+        dashHigh = DriverStation.getInstance().getDashboardPackerHigh();
+
+        dashLow = DriverStation.getInstance().getDashboardPackerLow();
+
+        dashLow.addCluster();
+        {
+            dashLow.addDouble(DriverStation.getInstance().getMatchTime());
+        }
+        dashLow.finalizeCluster();
+
+        dashLow.commit();
+    }
+
+    void sendToDisplay(String str) {
+        lcd = DriverStationLCD.getInstance();
+        lcd.println(DriverStationLCD.Line.kUser2, 1, str);
+        lcd.updateLCD();
     }
 }
