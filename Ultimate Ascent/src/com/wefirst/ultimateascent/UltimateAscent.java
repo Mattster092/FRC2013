@@ -6,10 +6,10 @@ package com.wefirst.ultimateascent;
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project. */
 /*----------------------------------------------------------------------------*/
-import edu.wpi.first.wpilibj.CANJaguar;
 import edu.wpi.first.wpilibj.Dashboard;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStationLCD;
+import edu.wpi.first.wpilibj.Jaguar;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
@@ -29,7 +29,7 @@ import edu.wpi.first.wpilibj.image.NIVision;
 public class UltimateAscent extends SimpleRobot {
 
     private boolean m_robotMainOverridden;
-    CANJaguar driveMotors[];
+    Jaguar driveMotors[] = {new Jaguar(cRIOPorts.LEFT_1_MOTOR), new Jaguar(cRIOPorts.RIGHT_1_MOTOR), new Jaguar(cRIOPorts.LEFT_2_MOTOR), new Jaguar(cRIOPorts.RIGHT_2_MOTOR)};
     RobotDrive driveTrain;
     Joystick joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
     Joystick joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
@@ -73,9 +73,7 @@ public class UltimateAscent extends SimpleRobot {
      */
     protected void robotInit() {
         try {
-            driveMotors[0] = new CANJaguar(cRIOPorts.LEFT_MOTOR);
-            driveMotors[1] = new CANJaguar(cRIOPorts.RIGHT_MOTOR);
-            driveTrain = new RobotDrive(driveMotors[0], driveMotors[2]);
+            driveTrain = new RobotDrive(driveMotors[0], driveMotors[1]);
             cam = AxisCamera.getInstance();
             cam.writeMaxFPS(15);
             cam.writeCompression(20);
@@ -126,17 +124,15 @@ public class UltimateAscent extends SimpleRobot {
                 any.printStackTrace();
             }
             for (int x = 0; x < driveMotors.length; x++) {
-                try {
-                    driveMotors[x].disableControl();
-                } catch (CANTimeoutException ex) {
-                    ex.printStackTrace();
-                }
+                driveMotors[x].set(0f);
             }
         }
     }
 
     public void drive() {
         driveTrain.tankDrive(joystickLeft, joystickRight); // tank drive
+        driveMotors[2].set(driveMotors[0].get());
+        driveMotors[3].set(driveMotors[1].get());
     }
 
     protected void disabled() {
