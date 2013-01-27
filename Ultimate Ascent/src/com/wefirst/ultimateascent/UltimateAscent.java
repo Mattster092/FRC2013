@@ -9,13 +9,12 @@ package com.wefirst.ultimateascent;
 import edu.wpi.first.wpilibj.Dashboard;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStationLCD;
-import edu.wpi.first.wpilibj.Jaguar;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.camera.AxisCamera;
-import edu.wpi.first.wpilibj.can.CANTimeoutException;
 import edu.wpi.first.wpilibj.image.CriteriaCollection;
 import edu.wpi.first.wpilibj.image.NIVision;
 
@@ -28,21 +27,23 @@ import edu.wpi.first.wpilibj.image.NIVision;
  */
 public class UltimateAscent extends SimpleRobot {
 
+    final double SPEED_LIMIT = 0.8;
     private boolean m_robotMainOverridden;
-    Jaguar driveMotors[] = {new Jaguar(cRIOPorts.LEFT_1_MOTOR), new Jaguar(cRIOPorts.RIGHT_1_MOTOR), new Jaguar(cRIOPorts.LEFT_2_MOTOR), new Jaguar(cRIOPorts.RIGHT_2_MOTOR)};
+    Victor driveMotors[] = {new Victor(cRIOPorts.LEFT_MOTOR), new Victor(cRIOPorts.RIGHT_MOTOR)};
+    Victor winch = new Victor(cRIOPorts.WINCH);
     RobotDrive driveTrain;
-    Joystick joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
-    Joystick joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
-    Joystick joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
+    Joystick joystickLeft;
+    Joystick joystickRight;
+    Joystick joystickShoot;
     AxisCamera cam;
     CriteriaCollection cc;
     DriverStationLCD lcd;
     Dashboard dashHigh;
     Dashboard dashLow;
+    double leftSpeed, rightSpeed, magnitude;
 
     public UltimateAscent() {
         super();
-        m_robotMainOverridden = true; // for testing - remove for competitions (I think)
     }
 
     /**
@@ -59,8 +60,6 @@ public class UltimateAscent extends SimpleRobot {
      * operatorControl() methods will be called.
      */
     public void robotMain() { // for testing - remove for competitions (I think)
-        robotInit();
-        operatorControl();
     }
 
     /**
@@ -74,16 +73,11 @@ public class UltimateAscent extends SimpleRobot {
     protected void robotInit() {
         try {
             driveTrain = new RobotDrive(driveMotors[0], driveMotors[1]);
-            cam = AxisCamera.getInstance();
-            cam.writeMaxFPS(15);
-            cam.writeCompression(20);
-            cam.writeColorLevel(50);
-            cam.writeBrightness(40);
-            cam.writeResolution(AxisCamera.ResolutionT.k160x120);
-            // cam.writeExposureControl(AxisCamera.ExposureT.automatic);
-            cc = new CriteriaCollection();
-            cc.addCriteria(NIVision.MeasurementType.IMAQ_MT_BOUNDING_RECT_WIDTH, 30, 400, false);
-            cc.addCriteria(NIVision.MeasurementType.IMAQ_MT_BOUNDING_RECT_HEIGHT, 40, 400, false);
+            joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
+            joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
+            joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
+                    
+            // camInit();
         } catch (Exception any) {
             any.printStackTrace();
         }
@@ -97,11 +91,18 @@ public class UltimateAscent extends SimpleRobot {
      */
     public void autonomous() {
         System.err.println("Entering autonomous:");
+        float power = 0f;
         // sendToDisplay("Entering autonomous:");
         driveTrain.setSafetyEnabled(false); // if true would stop the motors if there is no input, which there wouldn't be in autonomous
         while (isAutonomous() && isEnabled()) {
-            Camera.imageGrab(cam, cc);
-            updateDashboard();
+            if (power < 1f) {
+                power += 0.001f;
+            }
+            System.out.println(power);
+            driveMotors[0].set(power);
+            driveMotors[1].set(power);
+            // Camera.imageGrab(cam, cc);
+            // updateDashboard();
         }
     }
 
@@ -115,24 +116,46 @@ public class UltimateAscent extends SimpleRobot {
     public void operatorControl() {
         System.err.println("Entering teleopp:");
         // sendToDisplay("Entering teleopp:");
-        driveTrain.setSafetyEnabled(true); // stops the motors if input stops
+        // driveTrain.setSafetyEnabled(true); // stops the motors if input stops
         while (isOperatorControl() && isEnabled()) {
             try {
                 drive();
-                updateDashboard();
+                // updateDashboard();
             } catch (Exception any) {
                 any.printStackTrace();
-            }
-            for (int x = 0; x < driveMotors.length; x++) {
-                driveMotors[x].set(0f);
             }
         }
     }
 
     public void drive() {
-        driveTrain.tankDrive(joystickLeft, joystickRight); // tank drive
-        driveMotors[2].set(driveMotors[0].get());
-        driveMotors[3].set(driveMotors[1].get());
+        magnitude = 1-((joystickLeft.getZ() + 1.0) / 2.0);
+        leftSpeed = joystickLeft.getY() * magnitude;
+        rightSpeed = joystickRight.getY() * magnitude;
+        if (leftSpeed >= 0) {
+            leftSpeed = Math.min(SPEED_LIMIT, leftSpeed);
+        } else {
+            leftSpeed = Math.max(-SPEED_LIMIT, leftSpeed);
+        }
+        if (rightSpeed >= 0) {
+            rightSpeed = Math.min(SPEED_LIMIT, rightSpeed);
+        } else {
+            rightSpeed = Math.max(-SPEED_LIMIT, rightSpeed);
+        }
+        if (joystickLeft.getButton(Joystick.ButtonType.kTrigger) || joystickRight.getButton(Joystick.ButtonType.kTrigger))
+        {
+            winch.set(.5);
+        }
+        else
+        {
+            winch.set(0);
+        }
+        
+        
+                
+                
+                
+        System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
+        driveTrain.tankDrive(leftSpeed, rightSpeed); // tank drive
     }
 
     protected void disabled() {
@@ -193,5 +216,18 @@ public class UltimateAscent extends SimpleRobot {
         lcd = DriverStationLCD.getInstance();
         lcd.println(DriverStationLCD.Line.kUser2, 1, str);
         lcd.updateLCD();
+    }
+
+    void camInit() {
+        cam = AxisCamera.getInstance();
+        cam.writeMaxFPS(15);
+        cam.writeCompression(20);
+        cam.writeColorLevel(50);
+        cam.writeBrightness(40);
+        cam.writeResolution(AxisCamera.ResolutionT.k160x120);
+        // cam.writeExposureControl(AxisCamera.ExposureT.automatic);
+        cc = new CriteriaCollection();
+        cc.addCriteria(NIVision.MeasurementType.IMAQ_MT_BOUNDING_RECT_WIDTH, 30, 400, false);
+        cc.addCriteria(NIVision.MeasurementType.IMAQ_MT_BOUNDING_RECT_HEIGHT, 40, 400, false);
     }
 }
