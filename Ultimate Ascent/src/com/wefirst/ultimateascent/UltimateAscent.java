@@ -6,9 +6,11 @@ package com.wefirst.ultimateascent;
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project. */
 /*----------------------------------------------------------------------------*/
+import edu.wpi.first.wpilibj.Accelerometer;
 import edu.wpi.first.wpilibj.Dashboard;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStationLCD;
+import edu.wpi.first.wpilibj.Gyro;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
@@ -28,10 +30,17 @@ import edu.wpi.first.wpilibj.image.NIVision;
 public class UltimateAscent extends SimpleRobot {
 
     final double SPEED_LIMIT = 0.8;
-    private boolean m_robotMainOverridden;
+    private boolean m_robotMainOverridden = false;
     Victor driveMotors[] = {new Victor(cRIOPorts.LEFT_MOTOR), new Victor(cRIOPorts.RIGHT_MOTOR)};
-    Victor winch = new Victor(cRIOPorts.WINCH);
+    Victor armWinch1 = new Victor(cRIOPorts.WINCH1);
+    Victor armWinch2 = new Victor(cRIOPorts.WINCH2);
+    //Victor armHinge = new Victor(cRIOPorts.HINGE);
+    //Victor shooter1 = new Victor(cRIOPorts.SHOOTER1);
+    //Victor shooter2 = new Victor(cRIOPorts.SHOOTER2ch);
     RobotDrive driveTrain;
+    Gyro driveGyro;
+    Gyro winchGyro;
+    Accelerometer accel;
     Joystick joystickLeft;
     Joystick joystickRight;
     Joystick joystickShoot;
@@ -76,7 +85,6 @@ public class UltimateAscent extends SimpleRobot {
             joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
             joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
             joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
-                    
             // camInit();
         } catch (Exception any) {
             any.printStackTrace();
@@ -128,7 +136,7 @@ public class UltimateAscent extends SimpleRobot {
     }
 
     public void drive() {
-        magnitude = 1-((joystickLeft.getZ() + 1.0) / 2.0);
+        magnitude = 1 - ((joystickLeft.getZ() + 1.0) / 2.0);
         leftSpeed = joystickLeft.getY() * magnitude;
         rightSpeed = joystickRight.getY() * magnitude;
         if (leftSpeed >= 0) {
@@ -141,21 +149,24 @@ public class UltimateAscent extends SimpleRobot {
         } else {
             rightSpeed = Math.max(-SPEED_LIMIT, rightSpeed);
         }
-        if (joystickLeft.getButton(Joystick.ButtonType.kTrigger) || joystickRight.getButton(Joystick.ButtonType.kTrigger))
-        {
-            winch.set(.5);
-        }
-        else
-        {
-            winch.set(0);
-        }
-        
-        
-                
-                
-                
-        System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
-        driveTrain.tankDrive(leftSpeed, rightSpeed); // tank drive
+
+        /*
+         if (joystickRight.getButton(Joystick.ButtonType.kTrigger))
+         {
+            
+         winch1.set((joystickRight.getZ() ));
+         winch2.set((joystickRight.getZ() ));
+         System.out.println(joystickRight.getZ());
+         }
+         else
+         {
+         winch.set(0);
+         winch1.set(0);
+         }
+         */
+
+        //System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
+        driveTrain.tankDrive((leftSpeed), (rightSpeed)); // tank drive
     }
 
     protected void disabled() {
@@ -169,7 +180,7 @@ public class UltimateAscent extends SimpleRobot {
      * correct method, either Autonomous or OperatorControl when the robot is
      * enabled. After running the correct method, wait for some state to change,
      * either the other mode starts or the robot is disabled. Then go back and
-     * wait for the robot to be enabled again.
+     * wait for the robot to be enaled again.
      */
     public void startCompetition() {
         robotMain();
@@ -194,7 +205,7 @@ public class UltimateAscent extends SimpleRobot {
                         Timer.delay(0.01);
                     }
                 }
-            } /* while loop */
+            } // while loop
         }
     }
 
