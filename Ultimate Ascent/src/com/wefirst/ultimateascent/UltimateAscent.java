@@ -10,7 +10,6 @@ import edu.wpi.first.wpilibj.Accelerometer;
 import edu.wpi.first.wpilibj.Dashboard;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStationLCD;
-import edu.wpi.first.wpilibj.Gyro;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
@@ -38,8 +37,6 @@ public class UltimateAscent extends SimpleRobot {
     //Victor shooter1 = new Victor(cRIOPorts.SHOOTER1);
     //Victor shooter2 = new Victor(cRIOPorts.SHOOTER2ch);
     RobotDrive driveTrain;
-    Gyro driveGyro;
-    Gyro winchGyro;
     Accelerometer accel;
     Joystick joystickLeft;
     Joystick joystickRight;
@@ -85,6 +82,7 @@ public class UltimateAscent extends SimpleRobot {
             joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
             joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
             joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
+            //accel = new Accelerometer(cRIOPorts.ACCELEROMETER);
             // camInit();
         } catch (Exception any) {
             any.printStackTrace();
@@ -153,7 +151,7 @@ public class UltimateAscent extends SimpleRobot {
         /*
          if (joystickRight.getButton(Joystick.ButtonType.kTrigger))
          {
-            
+           
          winch1.set((joystickRight.getZ() ));
          winch2.set((joystickRight.getZ() ));
          System.out.println(joystickRight.getZ());
