@@ -15,4 +15,5 @@ public class cRIOPorts {
     public static final int VICTOR3 = 5;
     public static final int WINCH1 = 6;
     public static final int WINCH2 = 7;
+    public static final int POTENTIOMETER = 1;
 }

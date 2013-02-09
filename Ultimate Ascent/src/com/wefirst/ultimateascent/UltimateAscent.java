@@ -7,8 +7,6 @@ package com.wefirst.ultimateascent;
 /* the project. */
 /*----------------------------------------------------------------------------*/
 import edu.wpi.first.wpilibj.Accelerometer;
-import edu.wpi.first.wpilibj.Dashboard;
-import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStationLCD;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
@@ -16,9 +14,6 @@ import edu.wpi.first.wpilibj.SimpleRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.camera.AxisCamera;
-import edu.wpi.first.wpilibj.image.CriteriaCollection;
-import edu.wpi.first.wpilibj.image.NIVision;
-import edu.wpi.first.wpilibj.command.PIDSubsystem;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -45,13 +40,11 @@ public class UltimateAscent extends SimpleRobot {
     Joystick joystickShoot;
     Joystick joystickWinch;
     AxisCamera cam;
-    CriteriaCollection cc;
     DriverStationLCD lcd;
-    Dashboard dashHigh;
-    Dashboard dashLow;
-
+    //ArmSubsystem armSub = new ArmSubsystem(armHinge);
     //double armLevels[] = {0, 0, 0};
     //int counter = 0, position = 0;
+
     public UltimateAscent() {
         super();
     }
@@ -88,7 +81,7 @@ public class UltimateAscent extends SimpleRobot {
             joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
             joystickWinch = new Joystick(cRIOPorts.WINCH_JOYSTICK);
             //accel = new Accelerometer(cRIOPorts.ACCELEROMETER);
-            // camInit();
+            //camInit();
         } catch (Exception any) {
             any.printStackTrace();
         }
@@ -103,7 +96,7 @@ public class UltimateAscent extends SimpleRobot {
     public void autonomous() {
         System.err.println("Entering autonomous:");
         float power = 0f;
-        // sendToDisplay("Entering autonomous:");
+        //sendToDisplay("Entering autonomous:");
         driveTrain.setSafetyEnabled(false); // if true would stop the motors if there is no input, which there wouldn't be in autonomous
         while (isAutonomous() && isEnabled()) {
             if (power < 1f) {
@@ -112,8 +105,7 @@ public class UltimateAscent extends SimpleRobot {
             System.out.println(power);
             driveMotors[0].set(power);
             driveMotors[1].set(power);
-            // Camera.imageGrab(cam, cc);
-            // updateDashboard();
+            //Camera.imageGrab(cam, cc);
         }
     }
 
@@ -126,13 +118,14 @@ public class UltimateAscent extends SimpleRobot {
      */
     public void operatorControl() {
         System.err.println("Entering teleopp:");
-        // sendToDisplay("Entering teleopp:");
-        // driveTrain.setSafetyEnabled(true); // stops the motors if input stops
+        //sendToDisplay("Entering teleopp:");
+        //driveTrain.setSafetyEnabled(true); // stops the motors if input stops
+        //armSub.setSetpoint(armLevels[0]);
+        //armSub.enable();
         while (isOperatorControl() && isEnabled()) {
             try {
                 drive();
                 arm();
-                // updateDashboard();
             } catch (Exception any) {
                 any.printStackTrace();
             }
@@ -165,6 +158,7 @@ public class UltimateAscent extends SimpleRobot {
          if (counter > 0) {
          counter--;
          }
+         armSub.setSetpoint(armLevels[position]);
          */
         if (joystickWinch.getRawButton(3)) {
             armHinge.set(0.6f);
@@ -195,7 +189,7 @@ public class UltimateAscent extends SimpleRobot {
 
     protected void disabled() {
         System.err.println("Robot is disabled.");
-        // sendToDisplay("Robot is disabled.");
+        //sendToDisplay("Robot is disabled.");
     }
 
     /**
@@ -233,20 +227,6 @@ public class UltimateAscent extends SimpleRobot {
         }
     }
 
-    void updateDashboard() {
-        dashHigh = DriverStation.getInstance().getDashboardPackerHigh();
-
-        dashLow = DriverStation.getInstance().getDashboardPackerLow();
-
-        dashLow.addCluster();
-        {
-            dashLow.addDouble(DriverStation.getInstance().getMatchTime());
-        }
-        dashLow.finalizeCluster();
-
-        dashLow.commit();
-    }
-
     void sendToDisplay(String str) {
         lcd = DriverStationLCD.getInstance();
         lcd.println(DriverStationLCD.Line.kUser2, 1, str);
@@ -260,9 +240,6 @@ public class UltimateAscent extends SimpleRobot {
         cam.writeColorLevel(50);
         cam.writeBrightness(40);
         cam.writeResolution(AxisCamera.ResolutionT.k160x120);
-        // cam.writeExposureControl(AxisCamera.ExposureT.automatic);
-        cc = new CriteriaCollection();
-        cc.addCriteria(NIVision.MeasurementType.IMAQ_MT_BOUNDING_RECT_WIDTH, 30, 400, false);
-        cc.addCriteria(NIVision.MeasurementType.IMAQ_MT_BOUNDING_RECT_HEIGHT, 40, 400, false);
+        cam.writeExposureControl(AxisCamera.ExposureT.automatic);
     }
 }
