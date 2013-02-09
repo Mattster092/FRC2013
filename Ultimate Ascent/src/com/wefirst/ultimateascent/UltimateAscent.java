@@ -8,6 +8,7 @@ package com.wefirst.ultimateascent;
 /*----------------------------------------------------------------------------*/
 import edu.wpi.first.wpilibj.Accelerometer;
 import edu.wpi.first.wpilibj.DriverStationLCD;
+import edu.wpi.first.wpilibj.Gyro;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
@@ -35,14 +36,17 @@ public class UltimateAscent extends SimpleRobot {
     Victor shooter2 = new Victor(cRIOPorts.VICTOR3);
     RobotDrive driveTrain;
     Accelerometer accel;
+    Gyro gyro;
     Joystick joystickLeft;
     Joystick joystickRight;
     Joystick joystickShoot;
     Joystick joystickWinch;
     AxisCamera cam;
     DriverStationLCD lcd;
-    //ArmSubsystem armSub = new ArmSubsystem(armHinge);
-    //double armLevels[] = {0, 0, 0};
+    //ArmSubsystem winchSub = new ArmSubsystem(armWinch1, armWinch2);
+    //ArmSubsystem hingeSub = new ArmSubsystem(armHinge);
+    //double winchLevels[] = {0, 0, 0};
+    //double hingeLevels[] = {0, 0, 0, 0};
     //int counter = 0, position = 0;
 
     public UltimateAscent() {
@@ -81,6 +85,7 @@ public class UltimateAscent extends SimpleRobot {
             joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
             joystickWinch = new Joystick(cRIOPorts.WINCH_JOYSTICK);
             //accel = new Accelerometer(cRIOPorts.ACCELEROMETER);
+            //gyro = new Gyro(cRIOPorts.GYRO);
             //camInit();
         } catch (Exception any) {
             any.printStackTrace();
@@ -120,8 +125,8 @@ public class UltimateAscent extends SimpleRobot {
         System.err.println("Entering teleopp:");
         //sendToDisplay("Entering teleopp:");
         //driveTrain.setSafetyEnabled(true); // stops the motors if input stops
-        //armSub.setSetpoint(armLevels[0]);
-        //armSub.enable();
+        //winchSub.setSetpoint(winchLevels[0]);
+        //winchSub.enable();
         while (isOperatorControl() && isEnabled()) {
             try {
                 drive();
@@ -147,8 +152,13 @@ public class UltimateAscent extends SimpleRobot {
         armWinch1.set(motorSpeed);
         armWinch2.set(motorSpeed);
 
+        if (joystickWinch.getRawButton(3)) {
+            armHinge.set(0.6f);
+        } else if (joystickWinch.getRawButton(2)) {
+            armHinge.set(-0.6f);
+        }
         /*
-         if (joystickWinch.getRawButton(3) && counter == 0 && position < armLevels.length - 1) {
+         if (joystickWinch.getRawButton(3) && counter == 0 && position < winchLevels.length - 1) {
          counter = 300;
          position++;
          } else if (joystickWinch.getRawButton(2) && counter == 0 && position != 0) {
@@ -158,13 +168,10 @@ public class UltimateAscent extends SimpleRobot {
          if (counter > 0) {
          counter--;
          }
-         armSub.setSetpoint(armLevels[position]);
+         if (winchSup.getSetpoint() != winchLevels[position]) {
+         winchSub.setSetpoint(winchLevels[position]);
+         }
          */
-        if (joystickWinch.getRawButton(3)) {
-            armHinge.set(0.6f);
-        } else if (joystickWinch.getRawButton(2)) {
-            armHinge.set(-0.6f);
-        }
     }
 
     public void drive() {
