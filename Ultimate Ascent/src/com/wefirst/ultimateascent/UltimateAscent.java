@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.camera.AxisCamera;
 import edu.wpi.first.wpilibj.image.CriteriaCollection;
 import edu.wpi.first.wpilibj.image.NIVision;
+import edu.wpi.first.wpilibj.command.PIDSubsystem;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -28,26 +29,29 @@ import edu.wpi.first.wpilibj.image.NIVision;
  */
 public class UltimateAscent extends SimpleRobot {
 
-    final double SPEED_LIMIT = 0.8;
     private boolean m_robotMainOverridden = false;
+    final double SPEED_LIMIT = 0.8;
+    final double WINCH_SPEED_LIMIT = 0.9;
     Victor driveMotors[] = {new Victor(cRIOPorts.LEFT_MOTOR), new Victor(cRIOPorts.RIGHT_MOTOR)};
     Victor armWinch1 = new Victor(cRIOPorts.WINCH1);
     Victor armWinch2 = new Victor(cRIOPorts.WINCH2);
-    //Victor armHinge = new Victor(cRIOPorts.HINGE);
-    //Victor shooter1 = new Victor(cRIOPorts.SHOOTER1);
-    //Victor shooter2 = new Victor(cRIOPorts.SHOOTER2ch);
+    Victor armHinge = new Victor(cRIOPorts.VICTOR1);
+    Victor shooter1 = new Victor(cRIOPorts.VICTOR2);
+    Victor shooter2 = new Victor(cRIOPorts.VICTOR3);
     RobotDrive driveTrain;
     Accelerometer accel;
     Joystick joystickLeft;
     Joystick joystickRight;
     Joystick joystickShoot;
+    Joystick joystickWinch;
     AxisCamera cam;
     CriteriaCollection cc;
     DriverStationLCD lcd;
     Dashboard dashHigh;
     Dashboard dashLow;
-    double leftSpeed, rightSpeed, magnitude;
 
+    //double armLevels[] = {0, 0, 0};
+    //int counter = 0, position = 0;
     public UltimateAscent() {
         super();
     }
@@ -82,6 +86,7 @@ public class UltimateAscent extends SimpleRobot {
             joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
             joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
             joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
+            joystickWinch = new Joystick(cRIOPorts.WINCH_JOYSTICK);
             //accel = new Accelerometer(cRIOPorts.ACCELEROMETER);
             // camInit();
         } catch (Exception any) {
@@ -126,6 +131,7 @@ public class UltimateAscent extends SimpleRobot {
         while (isOperatorControl() && isEnabled()) {
             try {
                 drive();
+                arm();
                 // updateDashboard();
             } catch (Exception any) {
                 any.printStackTrace();
@@ -133,10 +139,44 @@ public class UltimateAscent extends SimpleRobot {
         }
     }
 
+    public void arm() {
+        double motorSpeed = 1 - ((joystickWinch.getY() + 1.0) / 2.0);
+        double magnitude = 1 - ((joystickWinch.getZ() + 1.0) / 2.0);
+
+        motorSpeed *= magnitude;
+
+        if (motorSpeed >= 0) {
+            motorSpeed = Math.min(WINCH_SPEED_LIMIT, motorSpeed);
+        } else {
+            motorSpeed = Math.max(-WINCH_SPEED_LIMIT, motorSpeed);
+        }
+
+        armWinch1.set(motorSpeed);
+        armWinch2.set(motorSpeed);
+
+        /*
+         if (joystickWinch.getRawButton(3) && counter == 0 && position < armLevels.length - 1) {
+         counter = 300;
+         position++;
+         } else if (joystickWinch.getRawButton(2) && counter == 0 && position != 0) {
+         counter = 300;
+         position--;
+         }
+         if (counter > 0) {
+         counter--;
+         }
+         */
+        if (joystickWinch.getRawButton(3)) {
+            armHinge.set(0.6f);
+        } else if (joystickWinch.getRawButton(2)) {
+            armHinge.set(-0.6f);
+        }
+    }
+
     public void drive() {
-        magnitude = 1 - ((joystickLeft.getZ() + 1.0) / 2.0);
-        leftSpeed = joystickLeft.getY() * magnitude;
-        rightSpeed = joystickRight.getY() * magnitude;
+        double magnitude = 1 - ((joystickLeft.getZ() + 1.0) / 2.0);
+        double leftSpeed = joystickLeft.getY() * magnitude;
+        double rightSpeed = joystickRight.getY() * magnitude;
         if (leftSpeed >= 0) {
             leftSpeed = Math.min(SPEED_LIMIT, leftSpeed);
         } else {
@@ -148,23 +188,9 @@ public class UltimateAscent extends SimpleRobot {
             rightSpeed = Math.max(-SPEED_LIMIT, rightSpeed);
         }
 
-        /*
-         if (joystickRight.getButton(Joystick.ButtonType.kTrigger))
-         {
-           
-         winch1.set((joystickRight.getZ() ));
-         winch2.set((joystickRight.getZ() ));
-         System.out.println(joystickRight.getZ());
-         }
-         else
-         {
-         winch.set(0);
-         winch1.set(0);
-         }
-         */
-
         //System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
         driveTrain.tankDrive((leftSpeed), (rightSpeed)); // tank drive
+        //System.out.println("accelerometer; " + accel.pidGet());
     }
 
     protected void disabled() {
@@ -178,7 +204,7 @@ public class UltimateAscent extends SimpleRobot {
      * correct method, either Autonomous or OperatorControl when the robot is
      * enabled. After running the correct method, wait for some state to change,
      * either the other mode starts or the robot is disabled. Then go back and
-     * wait for the robot to be enaled again.
+     * wait for the robot to be enabled again.
      */
     public void startCompetition() {
         robotMain();
