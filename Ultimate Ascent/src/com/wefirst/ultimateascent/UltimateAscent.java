@@ -9,7 +9,6 @@ package com.wefirst.ultimateascent;
 import edu.wpi.first.wpilibj.Accelerometer;
 import edu.wpi.first.wpilibj.DriverStationLCD;
 import edu.wpi.first.wpilibj.Gyro;
-import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
 import edu.wpi.first.wpilibj.Timer;
@@ -37,10 +36,10 @@ public class UltimateAscent extends SimpleRobot {
     RobotDrive driveTrain;
     Accelerometer accel;
     Gyro gyro;
-    Joystick joystickLeft;
-    Joystick joystickRight;
-    Joystick joystickShoot;
-    Joystick joystickWinch;
+    Attack3Joystick joystickLeft;
+    Attack3Joystick joystickRight;
+    Attack3Joystick joystickShoot;
+    Attack3Joystick joystickWinch;
     AxisCamera cam;
     DriverStationLCD lcd;
     //ArmSubsystem winchSub = new ArmSubsystem(armWinch1, armWinch2);
@@ -48,7 +47,7 @@ public class UltimateAscent extends SimpleRobot {
     //double winchLevels[] = {0, 0, 0};
     //double hingeLevels[] = {0, 0, 0, 0};
     //int counter = 0, position = 0;
-
+    
     public UltimateAscent() {
         super();
     }
@@ -80,10 +79,10 @@ public class UltimateAscent extends SimpleRobot {
     protected void robotInit() {
         try {
             driveTrain = new RobotDrive(driveMotors[0], driveMotors[1]);
-            joystickLeft = new Joystick(cRIOPorts.LEFT_JOYSTICK);
-            joystickRight = new Joystick(cRIOPorts.RIGHT_JOYSTICK);
-            joystickShoot = new Joystick(cRIOPorts.SHOOTING_JOYSTICK);
-            joystickWinch = new Joystick(cRIOPorts.WINCH_JOYSTICK);
+            joystickLeft = new Attack3Joystick(cRIOPorts.LEFT_JOYSTICK);
+            joystickRight = new Attack3Joystick(cRIOPorts.RIGHT_JOYSTICK);
+            joystickShoot = new Attack3Joystick(cRIOPorts.SHOOTING_JOYSTICK);
+            joystickWinch = new Attack3Joystick(cRIOPorts.WINCH_JOYSTICK);
             //accel = new Accelerometer(cRIOPorts.ACCELEROMETER);
             //gyro = new Gyro(cRIOPorts.GYRO);
             //camInit();
@@ -139,15 +138,11 @@ public class UltimateAscent extends SimpleRobot {
 
     public void arm() {
         double motorSpeed = 1 - ((joystickWinch.getY() + 1.0) / 2.0);
-        double magnitude = 1 - ((joystickWinch.getZ() + 1.0) / 2.0);
+        double magnitude = joystickWinch.getThrottle();//1 - ((joystickWinch.getZ() + 1.0) / 2.0);
 
         motorSpeed *= magnitude;
 
-        if (motorSpeed >= 0) {
-            motorSpeed = Math.min(WINCH_SPEED_LIMIT, motorSpeed);
-        } else {
-            motorSpeed = Math.max(-WINCH_SPEED_LIMIT, motorSpeed);
-        }
+        motorSpeed = Utils.limit(WINCH_SPEED_LIMIT, motorSpeed);
 
         armWinch1.set(motorSpeed);
         armWinch2.set(motorSpeed);
@@ -175,19 +170,12 @@ public class UltimateAscent extends SimpleRobot {
     }
 
     public void drive() {
-        double magnitude = 1 - ((joystickLeft.getZ() + 1.0) / 2.0);
+        double magnitude = joystickLeft.getThrottle();//1 - ((joystickLeft.getZ() + 1.0) / 2.0);
         double leftSpeed = joystickLeft.getY() * magnitude;
         double rightSpeed = joystickRight.getY() * magnitude;
-        if (leftSpeed >= 0) {
-            leftSpeed = Math.min(SPEED_LIMIT, leftSpeed);
-        } else {
-            leftSpeed = Math.max(-SPEED_LIMIT, leftSpeed);
-        }
-        if (rightSpeed >= 0) {
-            rightSpeed = Math.min(SPEED_LIMIT, rightSpeed);
-        } else {
-            rightSpeed = Math.max(-SPEED_LIMIT, rightSpeed);
-        }
+
+        leftSpeed = Utils.limit(SPEED_LIMIT, leftSpeed);
+        rightSpeed = Utils.limit(SPEED_LIMIT, rightSpeed);
 
         //System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
         driveTrain.tankDrive((leftSpeed), (rightSpeed)); // tank drive

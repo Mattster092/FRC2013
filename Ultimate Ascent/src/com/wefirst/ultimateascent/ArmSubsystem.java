@@ -6,7 +6,7 @@ import edu.wpi.first.wpilibj.command.PIDSubsystem;
 
 //Check out this article:
 //http://wpilib.screenstepslive.com/s/3120/m/7882/l/79335?data-resolve=true&data-manual-id=
-//could be VERY helpful
+//could be very helpful
 public class ArmSubsystem extends PIDSubsystem {
 
     private static final double Kp = 0.0;
