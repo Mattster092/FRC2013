@@ -7,6 +7,6 @@ public class RobotMap {
     public static Victor LEFT_MOTOR;
     
     public static void init(){
-        LEFT_MOTOR = new Victor(cRIOPorts.LEFT_MOTOR);
+        LEFT_MOTOR = new Victor(cRIOPorts.LEFT_MOTOR_1);
     }
 }
