@@ -6,9 +6,8 @@ package com.wefirst.ultimateascent;
 /* must be accompanied by the FIRST BSD license file in the root directory of */
 /* the project. */
 /*----------------------------------------------------------------------------*/
-import edu.wpi.first.wpilibj.Accelerometer;
 import edu.wpi.first.wpilibj.DriverStationLCD;
-import edu.wpi.first.wpilibj.Gyro;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.SimpleRobot;
@@ -25,33 +24,32 @@ import edu.wpi.first.wpilibj.camera.AxisCamera;
  */
 public class UltimateAscent extends SimpleRobot {
 
-    final boolean FOUR_WHEELS = false;
     private boolean m_robotMainOverridden = false;
     final double SPEED_LIMIT = 0.8;
-    final double WINCH_SPEED_LIMIT = 0.9;
     Victor driveMotors[];
     Victor armWinch1 = new Victor(cRIOPorts.WINCH1);
     Victor armWinch2 = new Victor(cRIOPorts.WINCH2);
     Victor armHinge = new Victor(cRIOPorts.VICTOR1);
-    Victor shooter1 = new Victor(cRIOPorts.VICTOR2);
-    Victor shooter2 = new Victor(cRIOPorts.VICTOR3);
+    //Victor shooter1 = new Victor(cRIOPorts.VICTOR2);
+    //Victor shooter2 = new Victor(cRIOPorts.VICTOR3);
+    //Victor shooterWindow = new Victor(cRIOPorts.WINDOW_MOTOR);
     RobotDrive driveTrain;
-    Accelerometer accel = new Accelerometer(2);
-    //Gyro gyro;
+    //Accelerometer accel = new Accelerometer(1);
     Attack3Joystick joystickLeft;
     Attack3Joystick joystickRight;
-    Attack3Joystick joystickShoot;
+    //Attack3Joystick joystickShoot;
     Attack3Joystick joystickWinch;
     AxisCamera cam;
     DriverStationLCD lcd;
-    boolean PIDSubEnabled = false;
-    ArmSubsystem winchSub = new ArmSubsystem(armWinch1, armWinch2);
-    ArmSubsystem hingeSub = new ArmSubsystem(armHinge);
+    Encoder leftEncoder, rightEncoder;
+    //ArmSubsystem winchSub = new ArmSubsystem(armWinch1, armWinch2);
+    //ArmSubsystem hingeSub = new ArmSubsystem(armHinge);
     double winchLevels[] = {0, 2.5, 5};
     double hingeLevels[] = {0, 2.5, 5};
     int position = 0;
     double PIDcounter = 0;
-    boolean debugPID = false;
+    double LPOWmod = 1;
+    double RPOWmod = 1;
 
     public UltimateAscent() {
         super();
@@ -83,28 +81,22 @@ public class UltimateAscent extends SimpleRobot {
      */
     protected void robotInit() {
         try {
-            if (FOUR_WHEELS) {
-                driveMotors = new Victor[4];
-                driveMotors[0] = new Victor(cRIOPorts.LEFT_MOTOR_1);
-                driveMotors[1] = new Victor(cRIOPorts.LEFT_MOTOR_2);
-                driveMotors[2] = new Victor(cRIOPorts.RIGHT_MOTOR_1);
-                driveMotors[3] = new Victor(cRIOPorts.RIGHT_MOTOR_2);
-                driveTrain = new RobotDrive(driveMotors[0], driveMotors[1], driveMotors[2], driveMotors[3]);
-            } else {
-                driveMotors = new Victor[2];
-                driveMotors[0] = new Victor(cRIOPorts.LEFT_MOTOR_1);
-                driveMotors[1] = new Victor(cRIOPorts.RIGHT_MOTOR_1);
-                driveTrain = new RobotDrive(driveMotors[0], driveMotors[1]);
-            }
+            driveMotors = new Victor[4];
+            driveMotors[0] = new Victor(cRIOPorts.LEFT_MOTOR_1);
+            driveMotors[1] = new Victor(cRIOPorts.LEFT_MOTOR_2);
+            driveMotors[2] = new Victor(cRIOPorts.RIGHT_MOTOR_1);
+            driveMotors[3] = new Victor(cRIOPorts.RIGHT_MOTOR_2);
+            driveTrain = new RobotDrive(driveMotors[0], driveMotors[1], driveMotors[2], driveMotors[3]);
+
             joystickLeft = new Attack3Joystick(cRIOPorts.LEFT_JOYSTICK);
             joystickRight = new Attack3Joystick(cRIOPorts.RIGHT_JOYSTICK);
-            joystickShoot = new Attack3Joystick(cRIOPorts.SHOOTING_JOYSTICK);
+            //joystickShoot = new Attack3Joystick(cRIOPorts.SHOOTING_JOYSTICK);
             joystickWinch = new Attack3Joystick(cRIOPorts.WINCH_JOYSTICK);
-            //accel = new Accelerometer(cRIOPorts.ACCELEROMETER);
-            //gyro = new Gyro(cRIOPorts.GYRO);
+            leftEncoder = new Encoder(cRIOPorts.LEFT_ENCODER_1, cRIOPorts.LEFT_ENCODER_2, true);
+            rightEncoder = new Encoder(cRIOPorts.RIGHT_ENCODER_1, cRIOPorts.RIGHT_ENCODER_2);
             //camInit();
-            winchSub.disable();
-            hingeSub.disable();
+            //winchSub.disable();
+            //hingeSub.disable();
         } catch (Exception any) {
             any.printStackTrace();
         }
@@ -125,14 +117,13 @@ public class UltimateAscent extends SimpleRobot {
             if (power < 1f) {
                 power += 0.001f;
             }
+
             System.out.println(power);
+
             driveMotors[0].set(power);
             driveMotors[1].set(power);
-            if (FOUR_WHEELS) {
-
-                driveMotors[2].set(power);
-                driveMotors[3].set(power);
-            }
+            driveMotors[2].set(power);
+            driveMotors[3].set(power);
             //Camera.imageGrab(cam, cc);
         }
     }
@@ -148,98 +139,162 @@ public class UltimateAscent extends SimpleRobot {
         System.err.println("Entering teleopp:");
         //sendToDisplay("Entering teleopp:");
         //driveTrain.setSafetyEnabled(true); // stops the motors if input stops
-        winchSub.setSetpoint(winchLevels[0]);
-        hingeSub.setSetpoint(hingeLevels[0]);
+        //winchSub.setSetpoint(winchLevels[0]);
+        //hingeSub.setSetpoint(hingeLevels[0]);
+        leftEncoder.start();
+        rightEncoder.start();
         while (isOperatorControl() && isEnabled()) {
             try {
                 drive();
                 arm();
+                //testing();
+                //shoot();
             } catch (Exception any) {
                 any.printStackTrace();
             }
         }
     }
 
+    /*
+     * public void shoot() {
+     double magnitude = joystickShoot.getThrottle();
+
+     shooter1.set(magnitude);
+     shooter2.set(magnitude);
+        
+     shooterWindow.set(joystickShoot.getY());
+     }
+     */
     public void arm() {
-        if (!PIDSubEnabled) {
-            double motorSpeed = joystickWinch.getY();
-            double magnitude = joystickWinch.getThrottle();//1 - ((joystickWinch.getZ() + 1.0) / 2.0);
 
-            motorSpeed *= magnitude;
+        double motorSpeed = joystickWinch.getY();
+        double magnitude = joystickWinch.getPower(); // 1 - ((joystickWinch.getZ() + 1.0) / 2.0);
 
-            //motorSpeed = Utils.limit(WINCH_SPEED_LIMIT, motorSpeed);
 
-            armWinch1.set(motorSpeed);
-            armWinch2.set(motorSpeed);
+        motorSpeed *= magnitude;
 
-            //System.out.println(motorSpeed);
+        //motorSpeed = Utils.limit(WINCH_SPEED_LIMIT, motorSpeed);
 
-            if (joystickWinch.getRawButton(3)) {
-                armHinge.set(1f);
-            } else if (joystickWinch.getRawButton(2)) {
-                armHinge.set(-1f);
-            }
-            if (joystickWinch.getRawButton(7)) {
-                PIDSubEnabled = true;
-                if (!debugPID) {
-                    winchSub.enable();
-                }
-            }
+        armWinch1.set(motorSpeed);
+        armWinch2.set(motorSpeed);
+
+        //System.out.println(motorSpeed);
+
+        if (joystickWinch.getRawButton(3)) {
+            armHinge.set(magnitude);
+        } else if (joystickWinch.getRawButton(2)) {
+            armHinge.set(-magnitude);
         } else {
-            if (!debugPID) {
-                if (joystickWinch.getRawButton(3) && Timer.getFPGATimestamp() > PIDcounter + 1 && position < winchLevels.length - 1) {
-                    PIDcounter = Timer.getFPGATimestamp();
-                    position++;
-                } else if (joystickWinch.getRawButton(2) && Timer.getFPGATimestamp() > PIDcounter + 1 && position != 0) {
-                    PIDcounter = Timer.getFPGATimestamp();
-                    position--;
-                }
-                if (joystickWinch.getRawButton(8)) {
-                    debugPID = true;
-                    winchSub.disable();
-                }
-            } else {
-                if (joystickWinch.getRawButton(4) && Timer.getFPGATimestamp() > PIDcounter + 1) {
-                    PIDcounter = Timer.getFPGATimestamp();
-                    newPID(winchSub, 0.5, 0, 0);
-                } else if (joystickWinch.getRawButton(3) && Timer.getFPGATimestamp() > PIDcounter + 1) {
-                    PIDcounter = Timer.getFPGATimestamp();
-                    newPID(winchSub, 0, 0.5, 0);
-                } else if (joystickWinch.getRawButton(5) && Timer.getFPGATimestamp() > PIDcounter + 1) {
-                    PIDcounter = Timer.getFPGATimestamp();
-                    newPID(winchSub, 0, 0, 0.5);
-                }
-                if (joystickWinch.getRawButton(9)) {
-                    debugPID = false;
-                    winchSub.enable();
-                }
-            }
-            if (winchSub.getSetpoint() != winchLevels[position]) {
-                winchSub.setSetpoint(winchLevels[position]);
-            }
-            if (joystickWinch.getRawButton(6)) {
-                PIDSubEnabled = false;
-                winchSub.disable();
-
-            }
+            armHinge.set(0);
         }
     }
 
     public void drive() {
-        double magnitude = joystickLeft.getThrottle();//1 - ((joystickLeft.getZ() + 1.0) / 2.0);
+
+        double magnitude = joystickLeft.getPower();// 1 - ((joystickLeft.getZ() + 1.0) / 2.0);
         double leftSpeed = joystickLeft.getY() * magnitude;
         double rightSpeed = joystickRight.getY() * magnitude;
 
+        /* ENCODER CODE IS DANGEROUS!!!
+         if (!leftEncoder.getStopped() && !rightEncoder.getStopped() && leftSpeed != 0 && rightSpeed != 0) {
+
+         double leftShift;
+         double rightShift;
+
+         leftShift = leftEncoder.getRate();
+         rightShift = rightEncoder.getRate();
+
+         leftShift /= leftSpeed;
+         rightShift /= rightSpeed;
+
+         if (leftShift != rightShift) {
+         if (leftShift < rightShift) {
+         leftShift = (leftShift / Math.abs(leftShift)) * (Math.abs(rightShift) + Math.abs(leftShift));
+         } else if (rightShift < leftShift) {
+         rightShift = (rightShift / Math.abs(rightShift)) * (Math.abs(rightShift) + Math.abs(leftShift));
+         }
+
+         double scaledMax = Math.max(Math.abs(leftShift), Math.abs(rightShift));
+
+         leftSpeed = leftShift / scaledMax;
+         rightSpeed = rightShift / scaledMax;
+         }
+         System.out.println("Left joystick: " + joystickLeft.getY() + " Right hoystick: " + joystickRight.getY());
+         System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
+         }
+         */
+
+        // deffs time for new encoder code
+        /*
+         double leftShift;
+         double rightShift;
+
+         leftShift = leftEncoder.getRate();
+         rightShift = rightEncoder.getRate();
+
+         leftShift /= leftSpeed;
+         rightShift /= rightSpeed;
+        
+         leftShift = Math.abs(leftShift);
+         rightShift = Math.abs(rightShift);
+
+         if (Math.abs(leftShift - rightShift) > 6) {
+         if (leftShift > rightShift) {
+         LPOWmod -= 0.01;
+         RPOWmod = 1;
+         } else if (leftShift < rightShift) {
+         RPOWmod -= 0.01;
+         LPOWmod = 1;
+         }
+         }
+        
+         leftSpeed *= LPOWmod;
+         rightSpeed *= RPOWmod;
+        
+         System.out.println("Left: " + joystickLeft.getY() + " Right: " + joystickRight.getY());
+         System.out.println("Left Speed: " + leftSpeed + " Right Speed: " + rightSpeed);
+         System.out.println("Left POW: " + LPOWmod + " Right POW: " + RPOWmod);
+         */
         leftSpeed = Utils.limit(SPEED_LIMIT, leftSpeed);
         rightSpeed = Utils.limit(SPEED_LIMIT, rightSpeed);
 
-        //System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
-        driveTrain.tankDrive((leftSpeed), (rightSpeed)); // tank drive
-        //System.out.println("accelerometer; " + accel.pidGet());
+        driveTrain.tankDrive((-leftSpeed), (-rightSpeed)); // tank drive
+    }
+
+    public void testing() {
+        //System.out.println("Accelerometer: " + accel.getAcceleration());
+        /*
+         if (joystickLeft.getRawButton(2)) {
+         System.out.println("Left Enc: " + leftEncoder.getDistance());
+         System.out.println("Right Enc: " + rightEncoder.getDistance());
+         }
+         */
+        if (joystickLeft.getRawButton(2)) {
+            driveMotors[0].disable();
+        }
+        if (joystickLeft.getRawButton(3)) {
+            driveMotors[1].disable();
+        }
+        if (joystickLeft.getRawButton(4)) {
+            driveMotors[2].disable();
+        }
+        if (joystickLeft.getRawButton(5)) {
+            driveMotors[3].disable();
+        }
+        /*
+         if (joystickLeft.getRawButton(9)) {
+         driveMotors[0] = new Victor(cRIOPorts.LEFT_MOTOR_1);
+         driveMotors[1] = new Victor(cRIOPorts.LEFT_MOTOR_2);
+         driveMotors[2] = new Victor(cRIOPorts.RIGHT_MOTOR_1);
+         driveMotors[3] = new Victor(cRIOPorts.RIGHT_MOTOR_2);
+         }
+         */
     }
 
     protected void disabled() {
         System.err.println("Robot is disabled.");
+        leftEncoder.reset();
+        rightEncoder.reset();
         //sendToDisplay("Robot is disabled.");
     }
 
