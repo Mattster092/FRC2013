@@ -14,6 +14,6 @@ public class Attack3Joystick extends Joystick{
     
     // Returns the Z-axis as a number between 0 and 1
     public double getPower(){
-        return 1 - ((this.getZ() + 1.0) / 2.0);
+        return -(1 - ((this.getZ() + 1.0) / 2.0));
     }
 }
