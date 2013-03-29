@@ -48,7 +48,7 @@ public class UltimateAscent extends SimpleRobot {
     AxisCamera cam;
     AnalogChannel winchPot;
     boolean deWinch = false;
-    int savedLimit = Constants.SAVED_LIMIT;
+    int savedLimit = Constants.SAVED_LIMIT_SHOOT;
     String output;
 
     public UltimateAscent() {
@@ -103,6 +103,9 @@ public class UltimateAscent extends SimpleRobot {
             //rightEncoder = new Encoder(cRIOPorts.RIGHT_ENCODER_1, cRIOPorts.RIGHT_ENCODER_2);
             shooterEncoder = new AnalogChannel(cRIOPorts.SHOOTER_ENCODER);
 
+
+
+
             winchPot = new AnalogChannel(cRIOPorts.POTENTIOMETER);
 
             camInit();
@@ -125,13 +128,17 @@ public class UltimateAscent extends SimpleRobot {
         driveTrain.setSafetyEnabled(false); // if true would stop the motors if there is no input, which there wouldn't be in autonomous
         int autoStage = Autonomous.ADJUST_SHOOTER;
         int discsShot = 0;
+        int setTo = Constants.AUTO_SHOOTER_LIMIT;
+        if (joystickRight.getPower() < -0.5) {
+            setTo = Constants.AUTO_SHOOTER_LIMIT_PYRAMID;
+        }
         while (isAutonomous() && isEnabled()) {
 
             System.out.println(autoStage);
 
             if (autoStage == Autonomous.ADJUST_SHOOTER) {
                 //System.out.println(shooterEncoder.getValue() +" ... "+ Constants.AUTO_SHOOTER_LIMIT);
-                angle.setAngle(Constants.AUTO_SHOOTER_LIMIT, shooterEncoder);
+                angle.setAngle(setTo, shooterEncoder);
                 autoStage = Autonomous.POWER_MOTORS;
 
                 /*else if (shooterEncoder.getValue() < Constants.AUTO_SHOOTER_LIMIT){
@@ -140,7 +147,7 @@ public class UltimateAscent extends SimpleRobot {
             } else if (autoStage == Autonomous.POWER_MOTORS) {
                 double speed = -1.0;
                 shooter.set(speed);
-                Timer.delay(1);
+                Timer.delay(3.0);
                 autoStage = Autonomous.SHOOT;
             } else if (autoStage == Autonomous.SHOOT) {
                 feeder.set(0.15);
@@ -207,23 +214,37 @@ public class UltimateAscent extends SimpleRobot {
         double magnitude = joystickWinch.getPower();
         shooter.set(magnitude);
 
-        if (joystickWinch.getRawButton(11) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT || joystickWinch.getRawButton(9))) {//shooter up
+        if (joystickWinch.getRawButton(3) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT || joystickWinch.getRawButton(9))) {//shooter up
             angle.set(1);
-        } else if (joystickWinch.getRawButton(10) && (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT || joystickWinch.getRawButton(9))) {//shooter down
+        } else if (joystickWinch.getRawButton(2) && (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT || joystickWinch.getRawButton(9))) {//shooter down
             angle.set(-0.6);
+        } else if (joystickLeft.getRawButton(3) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT)) {//shooter up
+            angle.set(1);
+        } else if (joystickLeft.getRawButton(2) && (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT)) {//shooter down
+            angle.set(-0.6);
+        } else if (joystickLeft.getRawButton(4)) {
+            angle.setAngle(Constants.SAVED_LIMIT_PYRAMID, shooterEncoder);
+        } else if (joystickLeft.getRawButton(5)) {
+            angle.setAngle(savedLimit, shooterEncoder);
         } else {
             angle.set(0);
         }
 
-        if (joystickWinch.getRawButton(6)) {
-            angle.setAngle(savedLimit, shooterEncoder);
-        }
         if (joystickWinch.getRawButton(7)) {
+            angle.setAngle(savedLimit, shooterEncoder);
+        } else if (joystickWinch.getRawButton(11)) {
+            angle.setAngle(Constants.SAVED_LIMIT_PYRAMID, shooterEncoder);
+        } else if (joystickWinch.getRawButton(10)) {
+            angle.setAngle(Constants.SHOOTER_UPPER_LIMIT, shooterEncoder);
+        } else if (joystickWinch.getRawButton(4)) {
+            angle.setAngle(Constants.SHOOTER_LOWER_LIMIT, shooterEncoder);
+        }
+        if (joystickWinch.getRawButton(6)) {
             savedLimit = shooterEncoder.getValue();
         }
 
         if (joystickWinch.getRawButton(1)) {
-            feeder.set(0.15);
+            feeder.set(0);
         } else {
             feeder.set(0.5);
         }
@@ -261,9 +282,9 @@ public class UltimateAscent extends SimpleRobot {
         armWinch1.set(armSpeed);
         armWinch2.set(armSpeed);
 
-        if (joystickWinch.getRawButton(2) || joystickRight.getRawButton(2)) {//arm down
+        if (joystickRight.getRawButton(2)) {//arm down
             climber.set(-1);
-        } else if (joystickWinch.getRawButton(3) || joystickRight.getRawButton(3)) {//arm up
+        } else if (joystickRight.getRawButton(3)) {//arm up
             climber.set(1);
         } else {
             climber.set(0);
