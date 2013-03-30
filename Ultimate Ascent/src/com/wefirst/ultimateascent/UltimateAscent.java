@@ -19,7 +19,7 @@ import edu.wpi.first.wpilibj.camera.AxisCamera;
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the SimpleRobot
- * documentation. If you change the name of this class or the package after
+  * documentation. If you change the name of this class or the package after
  * creating this project, you must also update the manifest file in the resource
  * directory.
  */
@@ -31,7 +31,7 @@ public class UltimateAscent extends SimpleRobot {
     Victor armWinch1;
     Victor armWinch2;
     Jaguar shooter;
-    AngleMotor angle;
+    Victor angle;
     Victor climber;
     Servo feeder;
     RobotDrive driveTrain;
@@ -50,6 +50,7 @@ public class UltimateAscent extends SimpleRobot {
     boolean deWinch = false;
     int savedLimit = Constants.SAVED_LIMIT_SHOOT;
     String output;
+    Setpoint angleSet = new Setpoint(0);
 
     public UltimateAscent() {
         super();
@@ -81,6 +82,7 @@ public class UltimateAscent extends SimpleRobot {
      */
     protected void robotInit() {
         try {
+            angleSet.enabled = false;
             driveMotors = new Victor[4];
             driveMotors[0] = new Victor(cRIOPorts.LEFT_MOTOR_1);
             driveMotors[1] = new Victor(cRIOPorts.LEFT_MOTOR_2);
@@ -91,7 +93,7 @@ public class UltimateAscent extends SimpleRobot {
             armWinch1 = new Victor(cRIOPorts.WINCH1);
             armWinch2 = new Victor(cRIOPorts.WINCH2);
             shooter = new Jaguar(cRIOPorts.SHOOTER);
-            angle = new AngleMotor(cRIOPorts.ANGLE);
+            angle = new Victor(cRIOPorts.ANGLE);
             climber = new Victor(cRIOPorts.CLIMBER);
             feeder = new Servo(cRIOPorts.FEEDER);
 
@@ -132,13 +134,19 @@ public class UltimateAscent extends SimpleRobot {
         if (joystickRight.getPower() < -0.5) {
             setTo = Constants.AUTO_SHOOTER_LIMIT_PYRAMID;
         }
+        Timer.delay(0.5);
         while (isAutonomous() && isEnabled()) {
 
             System.out.println(autoStage);
 
             if (autoStage == Autonomous.ADJUST_SHOOTER) {
                 //System.out.println(shooterEncoder.getValue() +" ... "+ Constants.AUTO_SHOOTER_LIMIT);
-                angle.setAngle(setTo, shooterEncoder);
+                while (shooterEncoder.getValue() > setTo) {
+                    angle.set(1);
+                }
+                while (shooterEncoder.getValue() < setTo) {
+                    angle.set(-0.8);
+                }
                 autoStage = Autonomous.POWER_MOTORS;
 
                 /*else if (shooterEncoder.getValue() < Constants.AUTO_SHOOTER_LIMIT){
@@ -216,31 +224,42 @@ public class UltimateAscent extends SimpleRobot {
 
         if (joystickWinch.getRawButton(3) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT || joystickWinch.getRawButton(9))) {//shooter up
             angle.set(1);
+            angleSet.enabled = false;
         } else if (joystickWinch.getRawButton(2) && (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT || joystickWinch.getRawButton(9))) {//shooter down
-            angle.set(-0.6);
+            angle.set(-0.8);
+            angleSet.enabled = false;
         } else if (joystickLeft.getRawButton(3) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT)) {//shooter up
             angle.set(1);
+            angleSet.enabled = false;
         } else if (joystickLeft.getRawButton(2) && (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT)) {//shooter down
-            angle.set(-0.6);
+            angle.set(-0.8);
+            angleSet.enabled = false;
         } else if (joystickLeft.getRawButton(4)) {
-            angle.setAngle(Constants.SAVED_LIMIT_PYRAMID, shooterEncoder);
+            Setpoint angleSet = new Setpoint(Constants.SAVED_LIMIT_PYRAMID);
         } else if (joystickLeft.getRawButton(5)) {
-            angle.setAngle(savedLimit, shooterEncoder);
+            Setpoint angleSet = new Setpoint(savedLimit);
         } else {
             angle.set(0);
         }
 
         if (joystickWinch.getRawButton(7)) {
-            angle.setAngle(savedLimit, shooterEncoder);
+            Setpoint angleSet = new Setpoint(savedLimit);
         } else if (joystickWinch.getRawButton(11)) {
-            angle.setAngle(Constants.SAVED_LIMIT_PYRAMID, shooterEncoder);
+            Setpoint angleSet = new Setpoint(Constants.SAVED_LIMIT_PYRAMID);
         } else if (joystickWinch.getRawButton(10)) {
-            angle.setAngle(Constants.SHOOTER_UPPER_LIMIT, shooterEncoder);
+            Setpoint angleSet = new Setpoint(Constants.SHOOTER_UPPER_LIMIT);
         } else if (joystickWinch.getRawButton(4)) {
-            angle.setAngle(Constants.SHOOTER_LOWER_LIMIT, shooterEncoder);
+            Setpoint angleSet = new Setpoint(Constants.SHOOTER_LOWER_LIMIT);
         }
         if (joystickWinch.getRawButton(6)) {
             savedLimit = shooterEncoder.getValue();
+        }
+
+        if (angleSet.enabled && !angleSet.isSet(shooterEncoder.getValue())) {
+            double newSpeed = angleSet.getSpeed(shooterEncoder.getValue());
+            if (newSpeed != -999) {
+                angle.set(newSpeed);
+          }
         }
 
         if (joystickWinch.getRawButton(1)) {
