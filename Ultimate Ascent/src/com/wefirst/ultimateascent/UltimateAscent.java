@@ -7,7 +7,7 @@ package com.wefirst.ultimateascent;
 /* the project. */
 /*----------------------------------------------------------------------------*/
 import edu.wpi.first.wpilibj.AnalogChannel;
-import edu.wpi.first.wpilibj.DriverStationLCD;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Jaguar;
 import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.Servo;
@@ -19,14 +19,13 @@ import edu.wpi.first.wpilibj.camera.AxisCamera;
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the SimpleRobot
-  * documentation. If you change the name of this class or the package after
+ * documentation. If you change the name of this class or the package after
  * creating this project, you must also update the manifest file in the resource
  * directory.
  */
 public class UltimateAscent extends SimpleRobot {
 
     private boolean m_robotMainOverridden = false;
-    final double SPEED_LIMIT = 1;
     Victor driveMotors[];
     Victor armWinch1;
     Victor armWinch2;
@@ -35,22 +34,16 @@ public class UltimateAscent extends SimpleRobot {
     Victor climber;
     Servo feeder;
     RobotDrive driveTrain;
-    //Accelerometer accel = new Accelerometer(1);
     Attack3Joystick joystickLeft;
     Attack3Joystick joystickRight;
     Attack3Joystick joystickWinch;
-    DriverStationLCD lcd;
-    //Encoder leftEncoder, rightEncoder;
     AnalogChannel shooterEncoder;
-    //double LPOWmod = 1;
-    //double RPOWmod = 1;
-    boolean precisionDriving = false;
     AxisCamera cam;
     AnalogChannel winchPot;
     boolean deWinch = false;
+    int angleTarget = 0;
     int savedLimit = Constants.SAVED_LIMIT_SHOOT;
     String output;
-    Setpoint angleSet = new Setpoint(0);
 
     public UltimateAscent() {
         super();
@@ -82,7 +75,6 @@ public class UltimateAscent extends SimpleRobot {
      */
     protected void robotInit() {
         try {
-            angleSet.enabled = false;
             driveMotors = new Victor[4];
             driveMotors[0] = new Victor(cRIOPorts.LEFT_MOTOR_1);
             driveMotors[1] = new Victor(cRIOPorts.LEFT_MOTOR_2);
@@ -100,14 +92,7 @@ public class UltimateAscent extends SimpleRobot {
             joystickLeft = new Attack3Joystick(cRIOPorts.LEFT_JOYSTICK);
             joystickRight = new Attack3Joystick(cRIOPorts.RIGHT_JOYSTICK);
             joystickWinch = new Attack3Joystick(cRIOPorts.WINCH_JOYSTICK);
-
-            //leftEncoder = new Encoder(cRIOPorts.LEFT_ENCODER_1, cRIOPorts.LEFT_ENCODER_2, true);
-            //rightEncoder = new Encoder(cRIOPorts.RIGHT_ENCODER_1, cRIOPorts.RIGHT_ENCODER_2);
             shooterEncoder = new AnalogChannel(cRIOPorts.SHOOTER_ENCODER);
-
-
-
-
             winchPot = new AnalogChannel(cRIOPorts.POTENTIOMETER);
 
             camInit();
@@ -125,69 +110,45 @@ public class UltimateAscent extends SimpleRobot {
      */
     public void autonomous() {
         System.err.println("Entering autonomous:");
-        float power = 0f;
-        //sendToDisplay("Entering autonomous:");
         driveTrain.setSafetyEnabled(false); // if true would stop the motors if there is no input, which there wouldn't be in autonomous
-        int autoStage = Autonomous.ADJUST_SHOOTER;
-        int discsShot = 0;
+        int autoStage = Constants.AUTO_ADJUST_SHOOTER;
         int setTo = Constants.AUTO_SHOOTER_LIMIT;
-        if (joystickRight.getPower() < -0.5) {
-            setTo = Constants.AUTO_SHOOTER_LIMIT_PYRAMID;
-        }
+        
+        //testing:
+        setTo = (int)(DriverStation.getInstance().getBatteryVoltage() * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
+        //end testing
+        
         Timer.delay(0.5);
+
         while (isAutonomous() && isEnabled()) {
-
-            System.out.println(autoStage);
-
-            if (autoStage == Autonomous.ADJUST_SHOOTER) {
-                //System.out.println(shooterEncoder.getValue() +" ... "+ Constants.AUTO_SHOOTER_LIMIT);
-                while (shooterEncoder.getValue() > setTo) {
+            if (autoStage == Constants.AUTO_ADJUST_SHOOTER) {
+                if (shooterEncoder.getValue() > setTo) {
                     angle.set(1);
-                }
-                while (shooterEncoder.getValue() < setTo) {
+                } else if (shooterEncoder.getValue() < setTo) {
                     angle.set(-0.8);
+                } else {
+                    angle.set(0);
+                    autoStage = Constants.AUTO_SHOOT;
                 }
-                autoStage = Autonomous.POWER_MOTORS;
-
-                /*else if (shooterEncoder.getValue() < Constants.AUTO_SHOOTER_LIMIT){
-                 //angle.set(0.6);
-                 }*/
-            } else if (autoStage == Autonomous.POWER_MOTORS) {
-                double speed = -1.0;
-                shooter.set(speed);
-                Timer.delay(3.0);
-                autoStage = Autonomous.SHOOT;
-            } else if (autoStage == Autonomous.SHOOT) {
+            } else if (autoStage == Constants.AUTO_SHOOT) {
+                shooter.set(-1);
+                Timer.delay(3);
                 feeder.set(0.15);
                 Timer.delay(6);
-                //feeder.set(0.5);
-                autoStage = Autonomous.FINISHED;
-                //autoStage = Autonomous.POWER_MOTORS;
-            } else if (autoStage == Autonomous.FINISHED) {
+                autoStage = Constants.AUTO_FINISHED;
+            } else if (autoStage == Constants.AUTO_FINISHED) {
                 feeder.set(0.5);
                 shooter.set(0);
-
                 if (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT) {
-                    angle.set(-0.7);
+                    angle.set(-0.8);
                 } else {
                     angle.set(0);
                 }
             }
-            /*if (shooterEncoder.getValue() < cRIOPorts.SHOOTER_LOWER_LIMIT){
-             angle.set(-0.8);
-             }*/
-
-            /*if (power < 1f) {
-             power += 0.001f;
-             }
-
-             System.out.println(power);
-
-             driveMotors[0].set(power);
-             driveMotors[1].set(power);
-             driveMotors[2].set(power);
-             driveMotors[3].set(power);*/
         }
+        feeder.set(0.5);
+        shooter.set(0);
+        angle.set(0);
     }
 
     /**
@@ -199,19 +160,13 @@ public class UltimateAscent extends SimpleRobot {
      */
     public void operatorControl() {
         System.err.println("Entering teleopp:");
-        //sendToDisplay("Entering teleopp:");
-        //driveTrain.setSafetyEnabled(true); // stops the motors if input stops
-        //winchSub.setSetpoint(winchLevels[0]);
-        //hingeSub.setSetpoint(hingeLevels[0]);
-        //leftEncoder.start();
-        //rightEncoder.start();
         while (isOperatorControl() && isEnabled()) {
             try {
                 output = "";
                 drive();
                 arm();
                 shoot();
-                output();
+                System.out.println(output);
             } catch (Exception any) {
                 any.printStackTrace();
             }
@@ -219,47 +174,42 @@ public class UltimateAscent extends SimpleRobot {
     }
 
     public void shoot() {
-        double magnitude = joystickWinch.getPower();
+        double magnitude = -joystickWinch.getPower();
         shooter.set(magnitude);
 
         if (joystickWinch.getRawButton(3) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT || joystickWinch.getRawButton(9))) {//shooter up
             angle.set(1);
-            angleSet.enabled = false;
+            angleTarget = 0;
         } else if (joystickWinch.getRawButton(2) && (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT || joystickWinch.getRawButton(9))) {//shooter down
             angle.set(-0.8);
-            angleSet.enabled = false;
-        } else if (joystickLeft.getRawButton(3) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT)) {//shooter up
-            angle.set(1);
-            angleSet.enabled = false;
-        } else if (joystickLeft.getRawButton(2) && (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT)) {//shooter down
-            angle.set(-0.8);
-            angleSet.enabled = false;
-        } else if (joystickLeft.getRawButton(4)) {
-            Setpoint angleSet = new Setpoint(Constants.SAVED_LIMIT_PYRAMID);
-        } else if (joystickLeft.getRawButton(5)) {
-            Setpoint angleSet = new Setpoint(savedLimit);
+            angleTarget = 0;
         } else {
             angle.set(0);
         }
 
         if (joystickWinch.getRawButton(7)) {
-            Setpoint angleSet = new Setpoint(savedLimit);
+            angleTarget = savedLimit;
         } else if (joystickWinch.getRawButton(11)) {
-            Setpoint angleSet = new Setpoint(Constants.SAVED_LIMIT_PYRAMID);
+            angleTarget = Constants.SAVED_LIMIT_PYRAMID;
         } else if (joystickWinch.getRawButton(10)) {
-            Setpoint angleSet = new Setpoint(Constants.SHOOTER_UPPER_LIMIT);
+            angleTarget = Constants.SHOOTER_UPPER_LIMIT;
         } else if (joystickWinch.getRawButton(4)) {
-            Setpoint angleSet = new Setpoint(Constants.SHOOTER_LOWER_LIMIT);
-        }
-        if (joystickWinch.getRawButton(6)) {
+            angleTarget = Constants.SHOOTER_LOWER_LIMIT;
+        } else if (joystickWinch.getRawButton(6)) {
             savedLimit = shooterEncoder.getValue();
+            angleTarget = 0;
+            angle.set(0);
         }
 
-        if (angleSet.enabled && !angleSet.isSet(shooterEncoder.getValue())) {
-            double newSpeed = angleSet.getSpeed(shooterEncoder.getValue());
-            if (newSpeed != -999) {
-                angle.set(newSpeed);
-          }
+        if (angleTarget != 0) {
+            if (shooterEncoder.getValue() < angleTarget) {
+                angle.set(-0.8);
+            } else if (shooterEncoder.getValue() > angleTarget) {
+                angle.set(1);
+            } else {
+                angle.set(0);
+                angleTarget = 0;
+            }
         }
 
         if (joystickWinch.getRawButton(1)) {
@@ -268,7 +218,6 @@ public class UltimateAscent extends SimpleRobot {
             feeder.set(0.5);
         }
         output += "---Shooter---\n";
-        output += "Motor speed: " + magnitude;
         output += "\nShooter angle: " + shooterEncoder.getValue();
         output += "\n\n";
     }
@@ -278,6 +227,8 @@ public class UltimateAscent extends SimpleRobot {
         double armSpeed = joystickWinch.getY();
         if (armSpeed < 0.2 && armSpeed > -0.2) {
             armSpeed = 0;
+        } else {
+            deWinch = false;
         }
 
         if (armSpeed < 0 && (winchPot.getValue() >= Constants.POT_WINCH_UP || joystickWinch.getRawButton(9))) {
@@ -294,7 +245,6 @@ public class UltimateAscent extends SimpleRobot {
             } else {
                 armSpeed = 0;
                 deWinch = false;
-                System.out.print("WINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\nWINCH IS LOOSE - RAISE ARMS\n");
             }
         }
 
@@ -309,139 +259,31 @@ public class UltimateAscent extends SimpleRobot {
             climber.set(0);
         }
         output += "---Arm---\n";
-        output += "Winch speed: " + armSpeed;
         output += "\nWinch position: " + winchPot.getValue();
         output += "\n\n";
     }
 
     public void drive() {
-
-        double magnitude = joystickLeft.getPower();
-        double leftSpeed = joystickLeft.getY() * magnitude;
-        double rightSpeed = joystickRight.getY() * magnitude;
-
-
-        /* ENCODER CODE IS DANGEROUS!!!
-         if (!leftEncoder.getStopped() && !rightEncoder.getStopped() && leftSpeed != 0 && rightSpeed != 0) {
-
-         double leftShift;
-         double rightShift;
-
-         leftShift = leftEncoder.getRate();
-         rightShift = rightEncoder.getRate();
-
-         leftShift /= leftSpeed;
-         rightShift /= rightSpeed;
-
-         if (leftShift != rightShift) {
-         if (leftShift < rightShift) {
-         leftShift = (leftShift / Math.abs(leftShift)) * (Math.abs(rightShift) + Math.abs(leftShift));
-         } else if (rightShift < leftShift) {
-         rightShift = (rightShift / Math.abs(rightShift)) * (Math.abs(rightShift) + Math.abs(leftShift));
-         }
-
-         double scaledMax = Math.max(Math.abs(leftShift), Math.abs(rightShift));
-
-         leftSpeed = leftShift / scaledMax;
-         rightSpeed = rightShift / scaledMax;
-         }
-         System.out.println("Left joystick: " + joystickLeft.getY() + " Right hoystick: " + joystickRight.getY());
-         System.out.println("Left: " + leftSpeed + " Right: " + rightSpeed + " ZAxis: " + joystickLeft.getZ() + " Magnitude: " + magnitude);
-         }
-         */
-
-        // deffs time for new encoder code
-        /*
-         double leftShift;
-         double rightShift;
-
-         leftShift = leftEncoder.getRate();
-         rightShift = rightEncoder.getRate();
-
-         leftShift /= leftSpeed;
-         rightShift /= rightSpeed;
-
-         leftShift = Math.abs(leftShift);
-         rightShift = Math.abs(rightShift);
-
-         if (Math.abs(leftShift - rightShift) > 6) {
-         if (leftShift > rightShift) {
-         LPOWmod -= 0.01;
-         RPOWmod = 1;
-         } else if (leftShift < rightShift) {
-         RPOWmod -= 0.01;
-         LPOWmod = 1;
-         }
-         }
-
-         leftSpeed *= LPOWmod;
-         rightSpeed *= RPOWmod;
-         * 
-         */
-
-        //System.out.println("Left: " + joystickLeft.getY() + " Right: " + joystickRight.getY());
-        //System.out.println("Left Speed: " + leftSpeed + " Right Speed: " + rightSpeed);
-        //System.out.println("Left POW: " + LPOWmod + " Right POW: " + RPOWmod);
-
-        precisionDriving = joystickLeft.getRawButton(1) || joystickRight.getRawButton(1);
-        if (precisionDriving) {
-            leftSpeed /= 2;
-            rightSpeed /= 2;
+        double leftSpeed = -joystickLeft.getY();
+        double rightSpeed = -joystickRight.getY();
+        
+        if (leftSpeed < 0.2 && leftSpeed > -0.2) {
+            leftSpeed = 0;
+        }
+        if (rightSpeed < 0.2 && rightSpeed > -0.2) {
+            rightSpeed = 0;
         }
 
-        leftSpeed = Utils.limit(SPEED_LIMIT, leftSpeed);
-        rightSpeed = Utils.limit(SPEED_LIMIT, rightSpeed);
+        if (joystickLeft.getRawButton(1) || joystickRight.getRawButton(1)) {
+            leftSpeed *= 0.75;
+            rightSpeed *= 0.75;
+        }
 
-        driveTrain.tankDrive((leftSpeed), (rightSpeed)); // tank drive
-        output += "---Drive---\n";
-        output += "Left Speed: " + leftSpeed + " Right Speed: " + rightSpeed;
-        output += "\n\n";
-    }
-
-    public void output() {
-        System.out.println(output);
-        //System.out.println("Accelerometer: " + accel.getAcceleration());
-        /*
-         if (joystickLeft.getRawButton(2)) {
-         System.out.println("Left Enc: " + leftEncoder.getDistance());
-         System.out.println("Right Enc: " + rightEncoder.getDistance());
-         }
-         */
-        /*
-         if (joystickLeft.getRawButton(2)) {
-         driveMotors[0].disable();
-         }
-         if (joystickLeft.getRawButton(3)) {
-         driveMotors[1].disable();
-         }
-         if (joystickLeft.getRawButton(4)) {
-         driveMotors[2].disable();
-         }
-         if (joystickLeft.getRawButton(5)) {
-         driveMotors[3].disable();
-         }
-         */
-        /*
-         if (joystickLeft.getRawButton(9)) {
-         driveMotors[0] = new Victor(cRIOPorts.LEFT_MOTOR_1);
-         driveMotors[1] = new Victor(cRIOPorts.LEFT_MOTOR_2);
-         driveMotors[2] = new Victor(cRIOPorts.RIGHT_MOTOR_1);
-         driveMotors[3] = new Victor(cRIOPorts.RIGHT_MOTOR_2);
-         }
-         */
+        driveTrain.tankDrive(leftSpeed, rightSpeed); // tank drive
     }
 
     protected void disabled() {
         System.err.println("Robot is disabled.");
-        //leftEncoder.reset();
-        //rightEncoder.reset();
-        //sendToDisplay("Robot is disabled.");
-    }
-
-    void sendToDisplay(String str) {
-        lcd = DriverStationLCD.getInstance();
-        lcd.println(DriverStationLCD.Line.kUser2, 1, str);
-        lcd.updateLCD();
     }
 
     /**
