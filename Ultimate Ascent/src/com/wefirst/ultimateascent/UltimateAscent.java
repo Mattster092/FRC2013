@@ -113,12 +113,16 @@ public class UltimateAscent extends SimpleRobot {
         driveTrain.setSafetyEnabled(false); // if true would stop the motors if there is no input, which there wouldn't be in autonomous
         int autoStage = Constants.AUTO_ADJUST_SHOOTER;
         int setTo = Constants.AUTO_SHOOTER_LIMIT;
-        
+
         //testing:
-        setTo = (int)(DriverStation.getInstance().getBatteryVoltage() * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
         //end testing
         
-        Timer.delay(0.5);
+        shooter.set(-1);
+        Timer.delay(1);
+        setTo = (int) (DriverStation.getInstance().getBatteryVoltage() * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
+        setTo = Math.max(Constants.SHOOTER_UPPER_LIMIT, setTo);
+        savedLimit = setTo;
+        shooter.set(0);
 
         while (isAutonomous() && isEnabled()) {
             if (autoStage == Constants.AUTO_ADJUST_SHOOTER) {
@@ -133,8 +137,12 @@ public class UltimateAscent extends SimpleRobot {
             } else if (autoStage == Constants.AUTO_SHOOT) {
                 shooter.set(-1);
                 Timer.delay(3);
-                feeder.set(0.15);
-                Timer.delay(6);
+                for (int count = 0; count < 10; count++) {
+                    feeder.set(0);
+                    Timer.delay(0.5);
+                    feeder.set(0.5);
+                    Timer.delay(0.3);
+                }
                 autoStage = Constants.AUTO_FINISHED;
             } else if (autoStage == Constants.AUTO_FINISHED) {
                 feeder.set(0.5);
@@ -176,6 +184,9 @@ public class UltimateAscent extends SimpleRobot {
     public void shoot() {
         double magnitude = -joystickWinch.getPower();
         shooter.set(magnitude);
+        if (magnitude <= -0.8 && angleTarget == 0) {
+            savedLimit = (int) (DriverStation.getInstance().getBatteryVoltage() * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
+        }
 
         if (joystickWinch.getRawButton(3) && (shooterEncoder.getValue() > Constants.SHOOTER_UPPER_LIMIT || joystickWinch.getRawButton(9))) {//shooter up
             angle.set(1);
@@ -196,9 +207,7 @@ public class UltimateAscent extends SimpleRobot {
         } else if (joystickWinch.getRawButton(4)) {
             angleTarget = Constants.SHOOTER_LOWER_LIMIT;
         } else if (joystickWinch.getRawButton(6)) {
-            savedLimit = shooterEncoder.getValue();
-            angleTarget = 0;
-            angle.set(0);
+            angleTarget = savedLimit + 2;
         }
 
         if (angleTarget != 0) {
@@ -266,7 +275,7 @@ public class UltimateAscent extends SimpleRobot {
     public void drive() {
         double leftSpeed = -joystickLeft.getY();
         double rightSpeed = -joystickRight.getY();
-        
+
         if (leftSpeed < 0.2 && leftSpeed > -0.2) {
             leftSpeed = 0;
         }
