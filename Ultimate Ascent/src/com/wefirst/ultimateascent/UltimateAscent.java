@@ -7,6 +7,7 @@ package com.wefirst.ultimateascent;
 /* the project. */
 /*----------------------------------------------------------------------------*/
 import edu.wpi.first.wpilibj.AnalogChannel;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Jaguar;
 import edu.wpi.first.wpilibj.RobotDrive;
@@ -14,7 +15,6 @@ import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.SimpleRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
-import edu.wpi.first.wpilibj.camera.AxisCamera;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -38,12 +38,16 @@ public class UltimateAscent extends SimpleRobot {
     Attack3Joystick joystickRight;
     Attack3Joystick joystickWinch;
     AnalogChannel shooterEncoder;
-    AxisCamera cam;
+    //AxisCamera cam;
     AnalogChannel winchPot;
+    DigitalInput shooterLimitSwitch = new DigitalInput(cRIOPorts.SHOOTER_LIMIT_SWITCH);
+    boolean shoot = false;
+    boolean recentShoot = false;
     boolean deWinch = false;
     int angleTarget = 0;
     int savedLimit = Constants.SAVED_LIMIT_SHOOT;
     String output;
+    double shootTime;
 
     public UltimateAscent() {
         super();
@@ -95,7 +99,7 @@ public class UltimateAscent extends SimpleRobot {
             shooterEncoder = new AnalogChannel(cRIOPorts.SHOOTER_ENCODER);
             winchPot = new AnalogChannel(cRIOPorts.POTENTIOMETER);
 
-            camInit();
+            //camInit();
 
         } catch (Exception any) {
             any.printStackTrace();
@@ -114,15 +118,21 @@ public class UltimateAscent extends SimpleRobot {
         int autoStage = Constants.AUTO_ADJUST_SHOOTER;
         int setTo = Constants.AUTO_SHOOTER_LIMIT;
 
-        //testing:
-        //end testing
-        
         shooter.set(-1);
-        Timer.delay(1);
-        setTo = (int) (DriverStation.getInstance().getBatteryVoltage() * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
+        Timer.delay(1.5);
+        double voltage = DriverStation.getInstance().getBatteryVoltage();
+        setTo = (int) (voltage * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
+        if (voltage <= 12.5) {
+            setTo = (int) (12.5 * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
+        }
+        if (voltage >= 12.9) {
+            setTo = (int) (12.9 * Constants.SCALING_SLOPE + Constants.SCALING_INTERCEPT + 0.5);
+        }
         setTo = Math.max(Constants.SHOOTER_UPPER_LIMIT, setTo);
         savedLimit = setTo;
         shooter.set(0);
+
+        double driveTimer = -1.0;
 
         while (isAutonomous() && isEnabled()) {
             if (autoStage == Constants.AUTO_ADJUST_SHOOTER) {
@@ -136,8 +146,8 @@ public class UltimateAscent extends SimpleRobot {
                 }
             } else if (autoStage == Constants.AUTO_SHOOT) {
                 shooter.set(-1);
-                Timer.delay(3);
-                for (int count = 0; count < 10; count++) {
+                Timer.delay(2);
+                for (int count = 0; count < 6; count++) {
                     feeder.set(0);
                     Timer.delay(0.5);
                     feeder.set(0.5);
@@ -145,6 +155,15 @@ public class UltimateAscent extends SimpleRobot {
                 }
                 autoStage = Constants.AUTO_FINISHED;
             } else if (autoStage == Constants.AUTO_FINISHED) {
+                if (driveTimer == -1.0) {
+                    driveTimer = Timer.getFPGATimestamp();
+                } else if (Timer.getFPGATimestamp() < driveTimer + 0.5) {
+                    driveTrain.tankDrive(-1, -1);
+                } else if (Timer.getFPGATimestamp() < driveTimer + 0.7) {
+                    driveTrain.tankDrive(1, -1);
+                } else {
+                    driveTrain.tankDrive(0, 0);
+                }
                 feeder.set(0.5);
                 shooter.set(0);
                 if (shooterEncoder.getValue() < Constants.SHOOTER_LOWER_LIMIT) {
@@ -168,6 +187,14 @@ public class UltimateAscent extends SimpleRobot {
      */
     public void operatorControl() {
         System.err.println("Entering teleopp:");
+        feeder.set(0.5);
+        shooter.set(0);
+        angle.set(0);
+        driveTrain.tankDrive(0, 0);
+        climber.set(0);
+        armWinch1.set(0);
+        armWinch2.set(0);
+        
         while (isOperatorControl() && isEnabled()) {
             try {
                 output = "";
@@ -221,13 +248,42 @@ public class UltimateAscent extends SimpleRobot {
             }
         }
 
-        if (joystickWinch.getRawButton(1)) {
-            feeder.set(0);
-        } else {
-            feeder.set(0.5);
+        if (joystickWinch.getRawButton(1) && shoot == false) {
+            shoot = true;
+            recentShoot = true;
+            shootTime = Timer.getFPGATimestamp();
         }
+
+        if (!joystickWinch.getRawButton(9)) {
+            if (shoot) {
+                feeder.set(0);
+                if (!shooterLimitSwitch.get()) {
+                    recentShoot = false;
+                }
+                if ((!recentShoot && shooterLimitSwitch.get()) || shootTime + 3.0 <= Timer.getFPGATimestamp()) {
+                    shoot = false;
+                    feeder.set(0.5);
+                }
+            } else {
+                feeder.set(0.5);
+            }
+        } else {
+            if (joystickWinch.getRawButton(1)) {
+                feeder.set(0);
+                System.out.println("Feeder On");
+            } else {
+                feeder.set(0.5);
+            }
+        }
+
         output += "---Shooter---\n";
         output += "\nShooter angle: " + shooterEncoder.getValue();
+        output += "\nShooter Limit Switch: ";
+        if (shooterLimitSwitch.get()) {
+            output += "true";
+        } else {
+            output += "false";
+        }
         output += "\n\n";
     }
 
@@ -284,8 +340,8 @@ public class UltimateAscent extends SimpleRobot {
         }
 
         if (joystickLeft.getRawButton(1) || joystickRight.getRawButton(1)) {
-            leftSpeed *= 0.75;
-            rightSpeed *= 0.75;
+            leftSpeed *= 0.8;
+            rightSpeed *= 0.8;
         }
 
         driveTrain.tankDrive(leftSpeed, rightSpeed); // tank drive
@@ -330,7 +386,7 @@ public class UltimateAscent extends SimpleRobot {
         }
     }
 
-    void camInit() {
+    /*void camInit() {
         cam = AxisCamera.getInstance();
         cam.writeMaxFPS(10);
         cam.writeCompression(20);
@@ -338,5 +394,5 @@ public class UltimateAscent extends SimpleRobot {
         cam.writeBrightness(40);
         cam.writeResolution(AxisCamera.ResolutionT.k160x120);
         cam.writeExposureControl(AxisCamera.ExposureT.automatic);
-    }
+    }*/
 }

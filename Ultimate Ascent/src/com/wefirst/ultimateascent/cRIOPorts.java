@@ -13,6 +13,8 @@ public class cRIOPorts {
     public static final int FEEDER = 10;
     public static final int ANGLE = 8;
     public static final int SHOOTER = 9;
+    
+    public static final int SHOOTER_LIMIT_SWITCH = 6;
         
     public static final int LEFT_JOYSTICK = 3;
     public static final int RIGHT_JOYSTICK = 1;

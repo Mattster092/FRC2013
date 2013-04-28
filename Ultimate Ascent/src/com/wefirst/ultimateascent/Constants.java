@@ -16,5 +16,5 @@ public class Constants {
     public static final int POT_WINCH_DOWN = 100;
     
     public static final double SCALING_SLOPE = 9.92;
-    public static final double SCALING_INTERCEPT = -39;
+    public static final double SCALING_INTERCEPT = -38;
 }
